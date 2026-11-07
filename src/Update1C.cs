@@ -25,29 +25,636 @@ using System.Windows.Forms;
 namespace OneCUpdate
 {
     // ------------------------------------------------------------------
-    //  Оформление
+    //  Оформление (современная тёмная палитра как в WPF-проекте)
     // ------------------------------------------------------------------
     internal static class Theme
     {
-        public static readonly Color Bg = Color.FromArgb(28, 28, 32);
-        public static readonly Color Surface = Color.FromArgb(36, 36, 41);
-        public static readonly Color Surface2 = Color.FromArgb(46, 46, 52);
-        public static readonly Color Border = Color.FromArgb(62, 62, 70);
-        public static readonly Color Text = Color.FromArgb(228, 228, 232);
-        public static readonly Color Muted = Color.FromArgb(150, 150, 160);
-        public static readonly Color Accent = Color.FromArgb(0, 122, 204);
-        public static readonly Color AccentHot = Color.FromArgb(24, 148, 236);
-        public static readonly Color Err = Color.FromArgb(244, 135, 113);
-        public static readonly Color Warn = Color.FromArgb(219, 205, 120);
-        public static readonly Color Ok = Color.FromArgb(137, 209, 133);
-        public static readonly Color Info = Color.FromArgb(120, 180, 240);
-        public static readonly Color ConsoleBg = Color.FromArgb(20, 20, 23);
-
+        // Основная палитра
+        public static readonly Color Bg = Color.FromArgb(28, 28, 32);           // #1C1C20
+        public static readonly Color Surface = Color.FromArgb(36, 36, 41);      // #242429
+        public static readonly Color Surface2 = Color.FromArgb(46, 46, 52);     // #2E2E34
+        public static readonly Color Surface3 = Color.FromArgb(52, 52, 58);     // #34343A
+        public static readonly Color Border = Color.FromArgb(62, 62, 70);       // #3E3E46
+        public static readonly Color BorderLight = Color.FromArgb(72, 72, 80);  // #484850
+        
+        // Текст
+        public static readonly Color Text = Color.FromArgb(228, 228, 232);      // #E4E4E8
+        public static readonly Color TextSecondary = Color.FromArgb(180, 180, 190); // #B4B4BE
+        public static readonly Color Muted = Color.FromArgb(150, 150, 160);     // #9696A0
+        public static readonly Color MutedLight = Color.FromArgb(120, 120, 130); // #78787E
+        
+        // Акценты
+        public static readonly Color Accent = Color.FromArgb(0, 122, 204);      // #007ACC VS Code Blue
+        public static readonly Color AccentHot = Color.FromArgb(24, 148, 236);  // #1894EC
+        public static readonly Color AccentDark = Color.FromArgb(0, 88, 156);   // #00589C
+        
+        // Семантические цвета (обновлены для лучшей читаемости)
+        public static readonly Color Ok = Color.FromArgb(115, 201, 144);        // #73C990 Success Green
+        public static readonly Color OkBg = Color.FromArgb(23, 60, 35);         // #173C23 Success Background
+        public static readonly Color Warn = Color.FromArgb(236, 196, 92);       // #ECC45C Warning Yellow
+        public static readonly Color WarnBg = Color.FromArgb(60, 50, 20);       // #3C3214 Warning Background
+        public static readonly Color Err = Color.FromArgb(244, 135, 113);       // #F48771 Error Red
+        public static readonly Color ErrBg = Color.FromArgb(60, 30, 25);        // #3C1E19 Error Background
+        public static readonly Color Info = Color.FromArgb(120, 180, 240);      // #78B4F0 Info Blue
+        public static readonly Color InfoBg = Color.FromArgb(20, 40, 60);       // #14283C Info Background
+        public static readonly Color Pending = Color.FromArgb(160, 160, 170);   // #A0A0AA Pending Gray
+        
+        // Консоль
+        public static readonly Color ConsoleBg = Color.FromArgb(20, 20, 23);    // #141417
+        
+        // Карточки KPI
+        public static readonly Color CardBg = Color.FromArgb(40, 40, 46);       // #28282E
+        public static readonly Color CardBorder = Color.FromArgb(70, 70, 78);   // #46464E
+        public static readonly Color CardHighlight = Color.FromArgb(50, 50, 58); // #32323A
+        
+        // Шрифты
         public static readonly Font Ui = new Font("Segoe UI", 9f);
         public static readonly Font UiBold = new Font("Segoe UI Semibold", 9f);
         public static readonly Font Mono = new Font("Consolas", 9f);
         public static readonly Font Title = new Font("Segoe UI Semibold", 13f);
+        public static readonly Font TitleLarge = new Font("Segoe UI Semibold", 15f);
         public static readonly Font Small = new Font("Segoe UI", 8.25f);
+        public static readonly Font KpiValue = new Font("Segoe UI", 20f, FontStyle.Bold);
+        public static readonly Font KpiLabel = new Font("Segoe UI", 8.5f);
+    }
+
+    // ------------------------------------------------------------------
+    //  Сглаженные закругленные углы (GDI+, без обрезки Region)
+    // ------------------------------------------------------------------
+    internal static class RoundedHelper
+    {
+        public static System.Drawing.Drawing2D.GraphicsPath CreatePath(Rectangle bounds, int radius)
+        {
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            if (radius <= 0 || bounds.Width <= 0 || bounds.Height <= 0)
+            {
+                path.AddRectangle(bounds);
+                return path;
+            }
+
+            int d = Math.Min(radius * 2, Math.Min(bounds.Width, bounds.Height));
+            path.AddArc(bounds.X, bounds.Y, d, d, 180, 90);
+            path.AddArc(bounds.Right - d, bounds.Y, d, d, 270, 90);
+            path.AddArc(bounds.Right - d, bounds.Bottom - d, d, d, 0, 90);
+            path.AddArc(bounds.X, bounds.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
+        }
+
+        public static void FillRounded(Graphics g, Rectangle bounds, int radius, Color fill, Color border, int borderWidth)
+        {
+            var mode = g.SmoothingMode;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            using (var path = CreatePath(bounds, radius))
+            {
+                if (fill.A > 0)
+                {
+                    using (var brush = new SolidBrush(fill)) g.FillPath(brush, path);
+                }
+                if (borderWidth > 0 && border.A > 0)
+                {
+                    using (var pen = new Pen(border, borderWidth)) g.DrawPath(pen, path);
+                }
+            }
+            g.SmoothingMode = mode;
+        }
+    }
+
+    /// <summary>Панель с закругленными углами и рамкой (сглаженная отрисовка).</summary>
+    internal class RoundedPanel : Panel
+    {
+        private int _radius = 8;
+
+        public int CornerRadius
+        {
+            get { return _radius; }
+            set { _radius = value; Invalidate(); }
+        }
+
+        public Color BorderColor { get; set; }
+        public int BorderWidth { get; set; }
+
+        public RoundedPanel()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            BackColor = Theme.Surface;
+            BorderColor = Theme.Border;
+            BorderWidth = 1;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            RoundedHelper.FillRounded(e.Graphics, new Rectangle(0, 0, Width - 1, Height - 1),
+                _radius, BackColor, BorderColor, BorderWidth);
+        }
+    }
+
+    /// <summary>Кнопка с закругленными углами (сглаженная отрисовка, hover/press).</summary>
+    internal sealed class RoundedButton : Button
+    {
+        private bool _hover;
+        private bool _down;
+
+        public int CornerRadius { get; set; }
+        public Color NormalBack { get; set; }
+        public Color HoverBack { get; set; }
+        public Color DownBack { get; set; }
+        public Color NormalBorder { get; set; }
+        public Color HoverBorder { get; set; }
+        public Color TextColor { get; set; }
+
+        public RoundedButton()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            FlatStyle = FlatStyle.Flat;
+            FlatAppearance.BorderSize = 0;
+            UseVisualStyleBackColor = false;
+            TabStop = false;
+            Cursor = Cursors.Hand;
+            CornerRadius = 6;
+            NormalBack = Theme.Surface2;
+            HoverBack = Theme.Surface3;
+            DownBack = Theme.AccentDark;
+            NormalBorder = Theme.Border;
+            HoverBorder = Theme.BorderLight;
+            TextColor = Theme.Text;
+            Font = Theme.Ui;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; _down = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseDown(MouseEventArgs e) { _down = true; Invalidate(); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { _down = false; Invalidate(); base.OnMouseUp(e); }
+        protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            Color back, border, fore;
+            if (!Enabled)
+            {
+                back = Theme.Surface;
+                border = Theme.Border;
+                fore = Theme.MutedLight;
+            }
+            else if (_down)
+            {
+                back = DownBack;
+                border = DownBack;
+                fore = TextColor;
+            }
+            else if (_hover)
+            {
+                back = HoverBack;
+                border = HoverBorder;
+                fore = TextColor;
+            }
+            else
+            {
+                back = NormalBack;
+                border = NormalBorder;
+                fore = TextColor;
+            }
+
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            RoundedHelper.FillRounded(e.Graphics, rect, CornerRadius, back, border, 1);
+
+            TextRenderer.DrawText(e.Graphics, Text, Font, rect, fore,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    /// <summary>Выпадающий список в стиле тёмной темы (рисует себя сам).</summary>
+    internal sealed class RoundedCombo : Control
+    {
+        private int _selectedIndex = -1;
+        private string _text = "";
+        private bool _hover;
+        private readonly ContextMenuStrip _menu;
+
+        public readonly List<string> Items = new List<string>();
+
+        public int CornerRadius { get; set; }
+        public Color BorderColor { get; set; }
+        public event EventHandler SelectedIndexChanged;
+
+        public RoundedCombo()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            CornerRadius = 6;
+            BackColor = Theme.Surface2;
+            ForeColor = Theme.Text;
+            BorderColor = Theme.Border;
+            Font = Theme.Ui;
+            Size = new Size(150, 27);
+            Cursor = Cursors.Hand;
+
+            _menu = new ContextMenuStrip();
+            _menu.ShowImageMargin = false;
+            _menu.BackColor = Theme.Surface2;
+            _menu.ForeColor = Theme.Text;
+            _menu.Renderer = new DarkMenuRenderer();
+        }
+
+        public int SelectedIndex
+        {
+            get { return _selectedIndex; }
+            set
+            {
+                int v = value;
+                if (v < -1) v = -1;
+                if (v >= Items.Count) v = Items.Count - 1;
+                if (v == _selectedIndex) return;
+                _selectedIndex = v;
+                if (v >= 0) _text = Items[v];
+                Invalidate();
+                if (SelectedIndexChanged != null) SelectedIndexChanged(this, EventArgs.Empty);
+            }
+        }
+
+        public override string Text
+        {
+            get { return _selectedIndex >= 0 && _selectedIndex < Items.Count ? Items[_selectedIndex] : _text; }
+            set
+            {
+                string text = value ?? "";
+                _text = text;
+                int idx = Items.IndexOf(text);
+                bool changed = false;
+                if (idx >= 0)
+                {
+                    if (_selectedIndex != idx) { _selectedIndex = idx; changed = true; }
+                }
+                else if (_selectedIndex != -1)
+                {
+                    _selectedIndex = -1;
+                    changed = true;
+                }
+                Invalidate();
+                if (changed && SelectedIndexChanged != null) SelectedIndexChanged(this, EventArgs.Empty);
+            }
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
+
+        protected override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
+            if (e.Button == MouseButtons.Left) ShowMenu();
+        }
+
+        private void ShowMenu()
+        {
+            if (!Enabled || Items.Count == 0) return;
+            _menu.Items.Clear();
+            for (int i = 0; i < Items.Count; i++)
+            {
+                int index = i;
+                var item = new ToolStripMenuItem(Items[i]);
+                item.ForeColor = i == _selectedIndex ? Color.White : Theme.Text;
+                item.BackColor = i == _selectedIndex ? Theme.AccentDark : Theme.Surface2;
+                item.Click += delegate { SelectedIndex = index; };
+                _menu.Items.Add(item);
+            }
+            _menu.MinimumSize = new Size(Width, 0);
+            _menu.Show(this, new Point(0, Height + 2));
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            RoundedHelper.FillRounded(e.Graphics, rect, CornerRadius, BackColor,
+                _hover && Enabled ? Theme.BorderLight : BorderColor, 1);
+
+            Color fore = Enabled ? ForeColor : Theme.MutedLight;
+            var textRect = new Rectangle(10, 0, Math.Max(0, Width - 32), Height);
+            TextRenderer.DrawText(e.Graphics, Text, Font, textRect, fore,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+
+            int cx = Width - 16;
+            int cy = Height / 2;
+            using (var pen = new Pen(fore, 1.6f))
+            {
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                e.Graphics.DrawLines(pen, new Point[]
+                {
+                    new Point(cx - 3, cy - 2),
+                    new Point(cx, cy + 1),
+                    new Point(cx + 3, cy - 2)
+                });
+            }
+        }
+    }
+
+    /// <summary>Тёмный рендерер контекстного меню для RoundedCombo.</summary>
+    internal sealed class DarkMenuRenderer : ToolStripProfessionalRenderer
+    {
+        public DarkMenuRenderer() : base(new DarkColorTable()) { }
+
+        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+        {
+            e.TextColor = e.Item.Selected ? Color.White : Theme.Text;
+            base.OnRenderItemText(e);
+        }
+    }
+
+    internal sealed class DarkColorTable : ProfessionalColorTable
+    {
+        public override Color ToolStripDropDownBackground { get { return Theme.Surface2; } }
+        public override Color MenuItemSelected { get { return Theme.AccentDark; } }
+        public override Color MenuItemSelectedGradientBegin { get { return Theme.AccentDark; } }
+        public override Color MenuItemSelectedGradientEnd { get { return Theme.AccentDark; } }
+        public override Color MenuItemBorder { get { return Theme.AccentDark; } }
+        public override Color MenuBorder { get { return Theme.Border; } }
+        public override Color ImageMarginGradientBegin { get { return Theme.Surface2; } }
+        public override Color ImageMarginGradientMiddle { get { return Theme.Surface2; } }
+        public override Color ImageMarginGradientEnd { get { return Theme.Surface2; } }
+    }
+
+    /// <summary>Чекбокс в стиле тёмной темы.</summary>
+    internal sealed class RoundedCheckBox : CheckBox
+    {
+        private bool _hover;
+
+        public RoundedCheckBox()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            Font = Theme.Ui;
+            ForeColor = Theme.Text;
+            Cursor = Cursors.Hand;
+            BackColor = Theme.Bg;
+        }
+
+        public override Size GetPreferredSize(Size proposedSize)
+        {
+            Size t = TextRenderer.MeasureText(Text ?? "", Font);
+            return new Size(t.Width + 26, Math.Max(20, t.Height + 4));
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            const int box = 16;
+            int top = (Height - box) / 2;
+            var rect = new Rectangle(0, top, box, box);
+
+            Color border = !Enabled ? Theme.Border
+                : Checked ? Theme.Accent
+                : _hover ? Theme.AccentHot
+                : Color.FromArgb(92, 92, 102);
+
+            RoundedHelper.FillRounded(e.Graphics, rect, 3,
+                Checked ? Theme.Accent : Theme.ConsoleBg, border, 1);
+
+            if (Checked)
+            {
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var pen = new Pen(Color.White, 2f))
+                {
+                    pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
+                    pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
+                    e.Graphics.DrawLines(pen, new Point[]
+                    {
+                        new Point(rect.Left + 4, rect.Top + 8),
+                        new Point(rect.Left + 7, rect.Top + 11),
+                        new Point(rect.Left + 12, rect.Top + 5)
+                    });
+                }
+            }
+
+            var textRect = new Rectangle(box + 8, 0, Math.Max(0, Width - box - 8), Height);
+            TextRenderer.DrawText(e.Graphics, Text, Font, textRect, Enabled ? ForeColor : Theme.MutedLight,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    /// <summary>Радиокнопка в стиле тёмной темы.</summary>
+    internal sealed class RoundedRadioButton : RadioButton
+    {
+        private bool _hover;
+
+        public RoundedRadioButton()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            Font = Theme.Ui;
+            ForeColor = Theme.Text;
+            Cursor = Cursors.Hand;
+            BackColor = Theme.Bg;
+        }
+
+        public override Size GetPreferredSize(Size proposedSize)
+        {
+            Size t = TextRenderer.MeasureText(Text ?? "", Font);
+            return new Size(t.Width + 26, Math.Max(20, t.Height + 4));
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            const int d = 16;
+            int top = (Height - d) / 2;
+            var rect = new Rectangle(0, top, d, d);
+
+            Color border = !Enabled ? Theme.Border
+                : Checked ? Theme.Accent
+                : _hover ? Theme.AccentHot
+                : Color.FromArgb(92, 92, 102);
+
+            RoundedHelper.FillRounded(e.Graphics, rect, d / 2,
+                Checked ? Theme.Accent : Theme.ConsoleBg, border, 1);
+
+            if (Checked)
+            {
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var brush = new SolidBrush(Color.White))
+                    e.Graphics.FillEllipse(brush, rect.Left + 5, rect.Top + 5, 6, 6);
+            }
+
+            var textRect = new Rectangle(d + 8, 0, Math.Max(0, Width - d - 8), Height);
+            TextRenderer.DrawText(e.Graphics, Text, Font, textRect, Enabled ? ForeColor : Theme.MutedLight,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
+        }
+    }
+
+    /// <summary>Индикатор прогресса с закруглениями и акцентной заливкой.</summary>
+    internal sealed class RoundedProgressBar : Control
+    {
+        private int _value;
+        private int _maximum = 100;
+
+        public int Value
+        {
+            get { return _value; }
+            set
+            {
+                int v = Math.Max(0, Math.Min(_maximum, value));
+                if (v != _value) { _value = v; Invalidate(); }
+            }
+        }
+
+        public int Maximum
+        {
+            get { return _maximum; }
+            set
+            {
+                _maximum = Math.Max(1, value);
+                if (_value > _maximum) _value = _maximum;
+                Invalidate();
+            }
+        }
+
+        public RoundedProgressBar()
+        {
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            Size = new Size(200, 10);
+        }
+
+        public override Size GetPreferredSize(Size proposedSize)
+        {
+            return new Size(proposedSize.Width > 0 ? proposedSize.Width : 200, 10);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+            int h = 8;
+            var track = new Rectangle(0, Math.Max(0, (Height - h) / 2), Width - 1, h);
+            if (track.Width <= 2) return;
+
+            RoundedHelper.FillRounded(e.Graphics, track, h / 2, Theme.Surface2, Theme.Border, 1);
+
+            int w = (int)Math.Round((double)track.Width * _value / _maximum);
+            if (w >= h)
+            {
+                var fill = new Rectangle(track.X, track.Y, Math.Min(w, track.Width), track.Height);
+                RoundedHelper.FillRounded(e.Graphics, fill, h / 2, Theme.Accent, Color.Empty, 0);
+            }
+            else if (w > 0)
+            {
+                var fill = new Rectangle(track.X, track.Y, Math.Max(w, h / 2), track.Height);
+                RoundedHelper.FillRounded(e.Graphics, fill, h / 2, Theme.Accent, Color.Empty, 0);
+            }
+        }
+    }
+
+    /// <summary>DataGridView со сглаженными закругленными углами и рамкой.</summary>
+    internal sealed class RoundedDataGrid : DataGridView
+    {
+        public int CornerRadius { get; set; }
+
+        public RoundedDataGrid()
+        {
+            CornerRadius = 8;
+            DoubleBuffered = true;
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+
+            var g = e.Graphics;
+            var mode = g.SmoothingMode;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            try
+            {
+                var full = new Rectangle(0, 0, Width, Height);
+                var inner = new Rectangle(0, 0, Width - 1, Height - 1);
+                using (var rounded = RoundedHelper.CreatePath(inner, CornerRadius))
+                {
+                    using (var mask = new System.Drawing.Drawing2D.GraphicsPath())
+                    {
+                        mask.FillMode = System.Drawing.Drawing2D.FillMode.Alternate;
+                        mask.AddRectangle(full);
+                        mask.AddPath(rounded, false);
+                        using (var brush = new SolidBrush(Parent != null ? Parent.BackColor : Theme.Bg))
+                            g.FillPath(brush, mask);
+                    }
+                    using (var pen = new Pen(Theme.Border, 1))
+                        g.DrawPath(pen, rounded);
+                }
+            }
+            finally { g.SmoothingMode = mode; }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    //  KPI-карточка для отображения статистики
+    // ------------------------------------------------------------------
+    internal sealed class KpiCard : Control
+    {
+        private string _value = "0";
+        private readonly string _title;
+        private readonly Color _accent;
+        private bool _hover;
+
+        public KpiCard(string title, Color accent)
+        {
+            _title = title;
+            _accent = accent;
+            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer |
+                     ControlStyles.ResizeRedraw | ControlStyles.UserPaint, true);
+            Size = new Size(168, 72);
+            Margin = new Padding(0, 0, 8, 0);
+            BackColor = Theme.Surface;
+            Cursor = Cursors.Hand;
+        }
+
+        protected override void OnMouseEnter(EventArgs e) { _hover = true; Invalidate(); base.OnMouseEnter(e); }
+        protected override void OnMouseLeave(EventArgs e) { _hover = false; Invalidate(); base.OnMouseLeave(e); }
+
+        public void SetValue(string value)
+        {
+            if (InvokeRequired)
+            {
+                Invoke(new Action<string>(SetValue), value);
+                return;
+            }
+            _value = value ?? "0";
+            Invalidate();
+        }
+
+        public void SetValue(int value)
+        {
+            SetValue(value.ToString());
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            e.Graphics.Clear(Parent != null ? Parent.BackColor : Theme.Bg);
+
+            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
+            RoundedHelper.FillRounded(e.Graphics, rect, 6,
+                _hover ? Theme.Surface2 : Theme.Surface,
+                _hover ? Theme.BorderLight : Theme.Border, 1);
+
+            // акцентная полоса слева (как в WpfUiKit)
+            var bar = new Rectangle(6, 8, 3, Math.Max(4, Height - 17));
+            RoundedHelper.FillRounded(e.Graphics, bar, 2, _accent, Color.Empty, 0);
+
+            var valueRect = new Rectangle(16, 4, Width - 22, Height - 28);
+            TextRenderer.DrawText(e.Graphics, _value, Theme.KpiValue, valueRect, Theme.Text,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+
+            var titleRect = new Rectangle(16, Height - 26, Width - 22, 18);
+            TextRenderer.DrawText(e.Graphics, _title, Theme.KpiLabel, titleRect, Theme.Muted,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -972,9 +1579,9 @@ namespace OneCUpdate
             l1.ForeColor = Theme.Muted;
             _domain = new TextBox();
             _domain.Dock = DockStyle.Fill;
-            _domain.BackColor = Theme.Surface2;
+            _domain.BackColor = Theme.Surface;
             _domain.ForeColor = Theme.Text;
-            _domain.BorderStyle = BorderStyle.FixedSingle;
+            _domain.BorderStyle = BorderStyle.None;
             _domain.Text = initialDomain;
             _domain.KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Enter) { LoadTree(); e.SuppressKeyPress = true; } };
             var loadBtn = MakeButton("Загрузить дерево", true, 140);
@@ -982,7 +1589,7 @@ namespace OneCUpdate
             var refresh = MakeButton("↻", false, 34);
             refresh.Click += delegate { LoadTree(); };
             top.Controls.Add(l1, 0, 0);
-            top.Controls.Add(_domain, 1, 0);
+            top.Controls.Add(WrapRounded(_domain, 6, new Padding(8, 4, 8, 4)), 1, 0);
             top.Controls.Add(loadBtn, 2, 0);
             top.Controls.Add(refresh, 3, 0);
 
@@ -1001,21 +1608,21 @@ namespace OneCUpdate
             l2.ForeColor = Theme.Muted;
             _mask = new TextBox();
             _mask.Dock = DockStyle.Fill;
-            _mask.BackColor = Theme.Surface2;
+            _mask.BackColor = Theme.Surface;
             _mask.ForeColor = Theme.Text;
-            _mask.BorderStyle = BorderStyle.FixedSingle;
+            _mask.BorderStyle = BorderStyle.None;
             _mask.KeyDown += delegate (object s, KeyEventArgs e) { if (e.KeyCode == Keys.Enter) { LoadComputers(); e.SuppressKeyPress = true; } };
-            _recursive = new CheckBox();
+            _recursive = new RoundedCheckBox();
             _recursive.Text = "включая вложенные OU";
             _recursive.AutoSize = true;
             _recursive.Checked = true;
             _recursive.ForeColor = Theme.Text;
-            _recursive.Margin = new Padding(8, 8, 0, 0);
+            _recursive.Margin = new Padding(8, 6, 0, 0);
             _recursive.CheckedChanged += delegate { LoadComputers(); };
             var findBtn = MakeButton("Найти", false, 84);
             findBtn.Click += delegate { LoadComputers(); };
             mid.Controls.Add(l2, 0, 0);
-            mid.Controls.Add(_mask, 1, 0);
+            mid.Controls.Add(WrapRounded(_mask, 6, new Padding(8, 4, 8, 4)), 1, 0);
             mid.Controls.Add(_recursive, 2, 0);
             mid.Controls.Add(findBtn, 3, 0);
 
@@ -1034,7 +1641,6 @@ namespace OneCUpdate
             _tree.HideSelection = false;
             _tree.ShowLines = true;
             _tree.ShowRootLines = true;
-            _tree.Margin = new Padding(0, 0, 6, 0);
             _tree.BeforeExpand += delegate (object s, TreeViewCancelEventArgs e) { FillNode(e.Node); };
             _tree.AfterSelect += delegate { LoadComputers(); };
 
@@ -1045,8 +1651,12 @@ namespace OneCUpdate
             _list.BorderStyle = BorderStyle.None;
             _list.CheckOnClick = true;
 
-            body.Controls.Add(_tree, 0, 0);
-            body.Controls.Add(_list, 1, 0);
+            var treeHost = WrapRounded(_tree, 8, new Padding(6, 6, 6, 6));
+            treeHost.Margin = new Padding(0, 0, 6, 0);
+            var listHost = WrapRounded(_list, 8, new Padding(6, 6, 6, 6));
+
+            body.Controls.Add(treeHost, 0, 0);
+            body.Controls.Add(listHost, 1, 0);
 
             _status = new Label();
             _status.Text = "";
@@ -1108,6 +1718,21 @@ namespace OneCUpdate
         {
             try { if (control != null) _tip.SetToolTip(control, text); } catch { }
         }
+
+        private static RoundedPanel WrapRounded(Control inner, int radius, Padding padding)
+        {
+            var host = new RoundedPanel();
+            host.Dock = DockStyle.Fill;
+            host.BackColor = Theme.Surface;
+            host.BorderColor = Theme.Border;
+            host.CornerRadius = radius;
+            host.Padding = padding;
+            host.Margin = new Padding(0);
+            inner.Dock = DockStyle.Fill;
+            host.Controls.Add(inner);
+            return host;
+        }
+
         private static Button MakeButton(string text, bool primary, int width)
         {
             var b = new Button();
@@ -1323,12 +1948,12 @@ namespace OneCUpdate
         private TextBox _distrib, _logs, _script, _psexec, _user, _password;
         private RadioButton _ipNo, _ipLast, _ipVer;
         private RadioButton _dpNo, _dpAel, _dpAll, _dpVer;
-        private ComboBox _verList, _delVerList;
+        private RoundedCombo _verList, _delVerList;
         private CheckBox _cbDesigner, _cbThin, _cbThinFile, _cbDryRun, _useEmbeddedPsexec;
-        private ComboBox _delivery;
+        private RoundedCombo _delivery;
         private NumericUpDown _threads;
         private Button _runBtn, _stopBtn, _checkBtn;
-        private ProgressBar _progress;
+        private RoundedProgressBar _progress;
         private Label _progressLabel;
         private DataGridView _grid;
         private RichTextBox _log;
@@ -1338,6 +1963,9 @@ namespace OneCUpdate
         private bool _componentSync;
         private bool _savedThin = true;
         private bool _savedThinFile;
+        
+        // KPI-карточки
+        private KpiCard _kpiTotal, _kpiSuccess, _kpiFailed, _kpiRunning;
 
         private readonly ConcurrentQueue<KeyValuePair<Color, string>> _queue = new ConcurrentQueue<KeyValuePair<Color, string>>();
         private readonly Dictionary<string, int> _rows = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -1388,7 +2016,7 @@ namespace OneCUpdate
             root.BackColor = Theme.Bg;
             root.ColumnCount = 1;
             root.RowCount = 5;
-            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+            root.RowStyles.Add(new RowStyle(SizeType.Absolute, 72));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 372));
             root.RowStyles.Add(new RowStyle(SizeType.Absolute, 52));
             root.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
@@ -1430,31 +2058,34 @@ namespace OneCUpdate
             p.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             p.Padding = new Padding(14, 10, 14, 0);
 
-            var left = new TableLayoutPanel();
+            var left = new FlowLayoutPanel();
             left.Dock = DockStyle.Fill;
-            left.ColumnCount = 1;
-            left.RowCount = 2;
-            left.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
-            left.RowStyles.Add(new RowStyle(SizeType.Absolute, 18));
+            left.FlowDirection = FlowDirection.TopDown;
+            left.WrapContents = false;
+            left.AutoSize = false;
+            left.Margin = new Padding(0);
+            left.Padding = new Padding(0);
 
             var title = new Label();
             title.Text = "1C Update";
-            title.Dock = DockStyle.Fill;
+            title.AutoSize = true;
+            title.Height = 28;
             title.Font = Theme.Title;
             title.ForeColor = Theme.Text;
-            title.Margin = new Padding(0);
+            title.Margin = new Padding(0, 0, 0, 0);
             title.TextAlign = ContentAlignment.MiddleLeft;
 
             var sub = new Label();
             sub.Text = "Список компьютеров → параметры 1С8InstallAndUninstall.ps1 → psexec → прогресс по каждому ПК";
-            sub.Dock = DockStyle.Fill;
-            sub.Font = Theme.Small;
-            sub.ForeColor = Theme.Muted;
-            sub.Margin = new Padding(0);
+            sub.AutoSize = true;
+            sub.Height = 20;
+            sub.Font = Theme.Ui;
+            sub.ForeColor = Theme.TextSecondary;
+            sub.Margin = new Padding(0, 0, 0, 0);
             sub.TextAlign = ContentAlignment.MiddleLeft;
 
-            left.Controls.Add(title, 0, 0);
-            left.Controls.Add(sub, 0, 1);
+            left.Controls.Add(title);
+            left.Controls.Add(sub);
 
             var right = new FlowLayoutPanel();
             right.Dock = DockStyle.Fill;
@@ -1473,18 +2104,20 @@ namespace OneCUpdate
             _threads.Minimum = 1;
             _threads.Maximum = 64;
             _threads.Value = 4;
-            _threads.Width = 56;
-            _threads.BackColor = Theme.Surface2;
+            _threads.Width = 52;
             _threads.ForeColor = Theme.Text;
-            _threads.BorderStyle = BorderStyle.FixedSingle;
-            _threads.Margin = new Padding(0, 5, 12, 0);
+            _threads.BorderStyle = BorderStyle.None;
+
+            var threadsHost = MakeInputHost(_threads, Theme.Surface, 6);
+            threadsHost.Size = new Size(66, 30);
+            threadsHost.Margin = new Padding(0, 4, 12, 0);
 
             _checkBtn = MakeButton("Проверить пути", false, 150);
             _checkBtn.Margin = new Padding(0, 4, 0, 0);
             _checkBtn.Click += delegate { CheckPaths(true); };
 
             right.Controls.Add(lbl);
-            right.Controls.Add(_threads);
+            right.Controls.Add(threadsHost);
             right.Controls.Add(_checkBtn);
 
             p.Controls.Add(left, 0, 0);
@@ -1523,10 +2156,12 @@ namespace OneCUpdate
             lbl.ForeColor = Theme.Muted;
             lbl.Font = Theme.UiBold;
 
-            var host = new Panel();
+            var host = new RoundedPanel();
             host.Dock = DockStyle.Fill;
-            host.BackColor = Theme.Border;
-            host.Padding = new Padding(1);
+            host.BackColor = Theme.Surface;
+            host.BorderColor = Theme.Border;
+            host.CornerRadius = 8;
+            host.Padding = new Padding(8, 6, 8, 6);
 
             _computers = new TextBox();
             _computers.Dock = DockStyle.Fill;
@@ -1613,10 +2248,13 @@ namespace OneCUpdate
             AddTextRow(body, 5, "Пользователь -u", out _user, "", false);
 
             var lblPass = MakeLabel("Пароль");
-            var passHost = new Panel();
+            var passHost = new RoundedPanel();
             passHost.Dock = DockStyle.Fill;
-            passHost.BackColor = Theme.Border;
-            passHost.Padding = new Padding(1);
+            passHost.BackColor = Theme.Surface;
+            passHost.BorderColor = Theme.Border;
+            passHost.CornerRadius = 6;
+            passHost.Padding = new Padding(8, 4, 8, 4);
+            passHost.Margin = new Padding(0, 4, 4, 4);
             _password = new TextBox();
             _password.Dock = DockStyle.Fill;
             _password.UseSystemPasswordChar = true;
@@ -1643,6 +2281,8 @@ namespace OneCUpdate
             ipRow.Controls.Add(_ipNo);
             ipRow.Controls.Add(_ipLast);
             ipRow.Controls.Add(_ipVer);
+            _verList.Size = new Size(150, 27);
+            _verList.Margin = new Padding(0, 2, 0, 0);
             ipRow.Controls.Add(_verList);
             body.Controls.Add(MakeLabel("Установка -ip"), 0, 7);
             body.Controls.Add(ipRow, 1, 7);
@@ -1666,6 +2306,8 @@ namespace OneCUpdate
             dpRow.Controls.Add(_dpAel);
             dpRow.Controls.Add(_dpAll);
             dpRow.Controls.Add(_dpVer);
+            _delVerList.Size = new Size(140, 27);
+            _delVerList.Margin = new Padding(0, 2, 0, 0);
             dpRow.Controls.Add(_delVerList);
             body.Controls.Add(MakeLabel("Удаление -dp"), 0, 8);
             body.Controls.Add(dpRow, 1, 8);
@@ -1729,13 +2371,13 @@ namespace OneCUpdate
         private void AddPathRowEmbedded(TableLayoutPanel body, int row, string caption, out TextBox box, out CheckBox check, string value, bool hasResource)
         {
             body.Controls.Add(MakeLabel(caption), 0, row);
-            var chk = new CheckBox();
+            var chk = new RoundedCheckBox();
             chk.Text = "встроенный";
             chk.AutoSize = true;
             chk.ForeColor = hasResource ? Theme.Text : Theme.Muted;
             chk.Enabled = hasResource;
             chk.Checked = hasResource;
-            chk.Margin = new Padding(0, 7, 8, 0);
+            chk.Margin = new Padding(0, 6, 8, 0);
             chk.CheckedChanged += delegate { UpdateEmbeddedState(); };
             box = MakePathCell(body, row, chk, value);
             check = chk;
@@ -1752,11 +2394,13 @@ namespace OneCUpdate
             cell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 38));
             cell.Margin = new Padding(0);
 
-            var host = new Panel();
+            var host = new RoundedPanel();
             host.Dock = DockStyle.Fill;
-            host.BackColor = Theme.Border;
-            host.Padding = new Padding(1);
-            host.Margin = new Padding(0, 3, 4, 3);
+            host.BackColor = Theme.Surface;
+            host.BorderColor = Theme.Border;
+            host.CornerRadius = 6;
+            host.Padding = new Padding(8, 4, 8, 4);
+            host.Margin = new Padding(0, 4, 4, 4);
 
             var tb = new TextBox();
             tb.Dock = DockStyle.Fill;
@@ -1783,18 +2427,16 @@ namespace OneCUpdate
             return tb;
         }
 
-        private void AddComboRow(TableLayoutPanel body, int row, string caption, out ComboBox combo, string[] items)
+        private void AddComboRow(TableLayoutPanel body, int row, string caption, out RoundedCombo combo, string[] items)
         {
             body.Controls.Add(MakeLabel(caption), 0, row);
-            var cb = new ComboBox();
-            cb.DropDownStyle = ComboBoxStyle.DropDownList;
-            cb.FlatStyle = FlatStyle.Flat;
-            cb.BackColor = Theme.Surface2;
-            cb.ForeColor = Theme.Text;
+            var cb = new RoundedCombo();
             cb.Dock = DockStyle.Fill;
             cb.Margin = new Padding(0, 4, 0, 4);
+            cb.BackColor = Theme.Surface2;
             foreach (string item in items) cb.Items.Add(item);
             if (cb.Items.Count > 0) cb.SelectedIndex = 0;
+
             body.Controls.Add(cb, 1, row);
             body.SetColumnSpan(cb, 2);
             combo = cb;
@@ -1854,11 +2496,13 @@ namespace OneCUpdate
         private void AddTextRow(TableLayoutPanel body, int row, string caption, out TextBox box, string value, bool password)
         {
             body.Controls.Add(MakeLabel(caption), 0, row);
-            var host = new Panel();
+            var host = new RoundedPanel();
             host.Dock = DockStyle.Fill;
-            host.BackColor = Theme.Border;
-            host.Padding = new Padding(1);
-            host.Margin = new Padding(0, 3, 4, 3);
+            host.BackColor = Theme.Surface;
+            host.BorderColor = Theme.Border;
+            host.CornerRadius = 6;
+            host.Padding = new Padding(8, 4, 8, 4);
+            host.Margin = new Padding(0, 4, 4, 4);
             var tb = new TextBox();
             tb.Dock = DockStyle.Fill;
             tb.BorderStyle = BorderStyle.None;
@@ -1878,6 +2522,7 @@ namespace OneCUpdate
             p.Dock = DockStyle.Fill;
             p.ColumnCount = 2;
             p.RowCount = 1;
+            p.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             p.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             p.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 300));
             p.Padding = new Padding(14, 2, 14, 6);
@@ -1906,11 +2551,11 @@ namespace OneCUpdate
             report.Margin = new Padding(0, 0, 8, 0);
             report.Click += delegate { SaveReport(); };
 
-            _cbDryRun = new CheckBox();
+            _cbDryRun = new RoundedCheckBox();
             _cbDryRun.Text = "только показать команды";
             _cbDryRun.AutoSize = true;
             _cbDryRun.ForeColor = Theme.Muted;
-            _cbDryRun.Margin = new Padding(0, 8, 0, 0);
+            _cbDryRun.Margin = new Padding(0, 6, 0, 0);
 
             flow.Controls.Add(_runBtn);
             flow.Controls.Add(_stopBtn);
@@ -1922,14 +2567,15 @@ namespace OneCUpdate
             pr.Dock = DockStyle.Fill;
             pr.ColumnCount = 2;
             pr.RowCount = 1;
+            pr.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             pr.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             pr.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 90));
             pr.Padding = new Padding(0, 10, 0, 0);
 
-            _progress = new ProgressBar();
+            _progress = new RoundedProgressBar();
             _progress.Dock = DockStyle.Fill;
-            _progress.Height = 18;
-            _progress.Margin = new Padding(0, 2, 8, 0);
+            _progress.Height = 10;
+            _progress.Margin = new Padding(0, 6, 8, 0);
 
             _progressLabel = new Label();
             _progressLabel.Dock = DockStyle.Fill;
@@ -1947,15 +2593,49 @@ namespace OneCUpdate
 
         private Control BuildResults()
         {
+            var container = new TableLayoutPanel();
+            container.Dock = DockStyle.Fill;
+            container.ColumnCount = 1;
+            container.RowCount = 2;
+            container.RowStyles.Add(new RowStyle(SizeType.Absolute, 90));
+            container.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+            container.Padding = new Padding(14, 8, 14, 0);
+            
+            // KPI панель
+            var kpiPanel = new Panel();
+            kpiPanel.Dock = DockStyle.Fill;
+            kpiPanel.BackColor = Theme.Bg;
+            kpiPanel.Padding = new Padding(0, 0, 0, 10);
+            
+            var kpiFlow = new FlowLayoutPanel();
+            kpiFlow.Dock = DockStyle.Fill;
+            kpiFlow.FlowDirection = FlowDirection.LeftToRight;
+            kpiFlow.WrapContents = false;
+            
+            _kpiTotal = new KpiCard("Всего ПК", Theme.Info);
+            _kpiSuccess = new KpiCard("Успешно", Theme.Ok);
+            _kpiFailed = new KpiCard("Ошибки", Theme.Err);
+            _kpiRunning = new KpiCard("В процессе", Theme.Accent);
+            
+            kpiFlow.Controls.Add(_kpiTotal);
+            kpiFlow.Controls.Add(_kpiSuccess);
+            kpiFlow.Controls.Add(_kpiFailed);
+            kpiFlow.Controls.Add(_kpiRunning);
+            
+            kpiPanel.Controls.Add(kpiFlow);
+            container.Controls.Add(kpiPanel, 0, 0);
+            
             var split = new SplitContainer();
             split.Dock = DockStyle.Fill;
             split.Orientation = Orientation.Horizontal;
             split.SplitterWidth = 6;
             split.BackColor = Theme.Bg;
-            split.Panel1.Padding = new Padding(14, 0, 14, 0);
-            split.Panel2.Padding = new Padding(14, 0, 14, 8);
+            split.Panel1.BackColor = Theme.Bg;
+            split.Panel2.BackColor = Theme.Bg;
+            split.Panel1.Padding = new Padding(0, 0, 0, 0);
+            split.Panel2.Padding = new Padding(0, 0, 0, 8);
 
-            _grid = new DataGridView();
+            _grid = new RoundedDataGrid();
             _grid.Dock = DockStyle.Fill;
             _grid.BackgroundColor = Theme.Surface;
             _grid.BorderStyle = BorderStyle.None;
@@ -1969,8 +2649,9 @@ namespace OneCUpdate
             _grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
             _grid.EnableHeadersVisualStyles = false;
             _grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing;
-            _grid.ColumnHeadersHeight = 26;
-            _grid.RowTemplate.Height = 24;
+            _grid.ColumnHeadersHeight = 30;
+            _grid.RowTemplate.Height = 26;
+            _grid.CellBorderStyle = DataGridViewCellBorderStyle.SingleHorizontal;
 
             var hdr = new DataGridViewCellStyle();
             hdr.BackColor = Theme.Surface2;
@@ -2008,10 +2689,12 @@ namespace OneCUpdate
                 catch (Exception ex) { MessageBox.Show(this, ex.Message, "1C Update"); }
             };
 
-            var logHost = new Panel();
+            var logHost = new RoundedPanel();
             logHost.Dock = DockStyle.Fill;
-            logHost.BackColor = Theme.Border;
-            logHost.Padding = new Padding(1);
+            logHost.BackColor = Theme.ConsoleBg;
+            logHost.BorderColor = Theme.BorderLight;
+            logHost.CornerRadius = 8;
+            logHost.Padding = new Padding(8, 8, 8, 8);
 
             _log = new RichTextBox();
             _log.Dock = DockStyle.Fill;
@@ -2030,7 +2713,25 @@ namespace OneCUpdate
 
             split.Panel1.Controls.Add(_grid);
             split.Panel2.Controls.Add(logHost);
-            return split;
+            
+            container.Controls.Add(split, 0, 1);
+            return container;
+        }
+        
+        // Обновление KPI-карточек
+        private void UpdateKpiCards()
+        {
+            if (_jobs == null || _jobs.Count == 0) return;
+            
+            int total = _jobs.Count;
+            int success = _jobs.Count(j => j.State == JobState.Ok || j.State == JobState.Skipped);
+            int failed = _jobs.Count(j => j.State == JobState.Failed);
+            int running = _jobs.Count(j => j.State == JobState.Running);
+            
+            _kpiTotal.SetValue(total);
+            _kpiSuccess.SetValue(success);
+            _kpiFailed.SetValue(failed);
+            _kpiRunning.SetValue(running);
         }
 
         private void AddColumn(string header, int width, bool fixedWidth)
@@ -2057,54 +2758,69 @@ namespace OneCUpdate
 
         private static RadioButton MakeRadio(string text)
         {
-            var r = new RadioButton();
+            var r = new RoundedRadioButton();
             r.Text = text;
             r.AutoSize = true;
             r.ForeColor = Theme.Text;
-            r.Margin = new Padding(0, 4, 10, 0);
+            r.Margin = new Padding(0, 2, 10, 0);
             return r;
         }
 
         private static CheckBox MakeCheck(string text)
         {
-            var c = new CheckBox();
+            var c = new RoundedCheckBox();
             c.Text = text;
             c.AutoSize = true;
             c.ForeColor = Theme.Text;
-            c.Margin = new Padding(0, 4, 14, 0);
+            c.Margin = new Padding(0, 2, 14, 0);
             return c;
         }
 
-        private static ComboBox MakeCombo(int width)
+        private static RoundedCombo MakeCombo(int width)
         {
-            var c = new ComboBox();
-            c.DropDownStyle = ComboBoxStyle.DropDown;
-            c.FlatStyle = FlatStyle.Flat;
+            var c = new RoundedCombo();
             c.BackColor = Theme.Surface2;
             c.ForeColor = Theme.Text;
             c.Width = width;
-            c.Margin = new Padding(0, 3, 0, 0);
+            c.Height = 27;
+            c.Margin = new Padding(0, 2, 0, 0);
             return c;
+        }
+
+        /// <summary>Помещает ввод в закругленную рамку, выравнивая его по центру.</summary>
+        private static RoundedPanel MakeInputHost(Control inner, Color back, int radius)
+        {
+            var host = new RoundedPanel();
+            host.BackColor = back;
+            host.BorderColor = Theme.Border;
+            host.CornerRadius = radius;
+            inner.Dock = DockStyle.None;
+            inner.BackColor = back;
+            host.Controls.Add(inner);
+            host.Layout += delegate
+            {
+                inner.Left = 6;
+                inner.Width = Math.Max(20, host.Width - 12);
+                inner.Top = Math.Max(0, (host.Height - inner.Height) / 2);
+            };
+            return host;
         }
 
         private static Button MakeButton(string text, bool primary, int width)
         {
-            var b = new Button();
+            var b = new RoundedButton();
             b.Text = text;
             b.AutoSize = false;
             b.Width = width;
             b.Height = 30;
-            b.FlatStyle = FlatStyle.Flat;
-            b.BackColor = primary ? Theme.Accent : Theme.Surface2;
-            b.ForeColor = primary ? Color.White : Theme.Text;
             b.Font = primary ? Theme.UiBold : Theme.Ui;
-            b.Cursor = Cursors.Hand;
-            b.UseVisualStyleBackColor = false;
-            b.TabStop = false;
-            b.FlatAppearance.BorderSize = 1;
-            b.FlatAppearance.BorderColor = primary ? Theme.Accent : Theme.Border;
-            b.FlatAppearance.MouseOverBackColor = primary ? Theme.AccentHot : Theme.Surface;
-            b.FlatAppearance.MouseDownBackColor = primary ? Theme.Accent : Theme.Border;
+            b.TextColor = primary ? Color.White : Theme.Text;
+            b.NormalBack = primary ? Theme.Accent : Theme.Surface2;
+            b.HoverBack = primary ? Theme.AccentHot : Theme.Surface3;
+            b.DownBack = primary ? Theme.AccentDark : Theme.AccentDark;
+            b.NormalBorder = primary ? Theme.Accent : Theme.Border;
+            b.HoverBorder = primary ? Theme.AccentHot : Theme.BorderLight;
+            b.CornerRadius = 6;
             return b;
         }
 
@@ -2234,8 +2950,10 @@ namespace OneCUpdate
         // ==============================================================
         private void SyncModeControls()
         {
-            _verList.Enabled = _ipVer.Checked;
-            _delVerList.Enabled = _dpVer.Checked;
+            // Не отключаем ComboBox (Windows рисует у отключённого светлый фон),
+            // а приглушаем текст — тёмная тема остаётся целой.
+            _verList.ForeColor = _ipVer.Checked ? Theme.Text : Theme.Muted;
+            _delVerList.ForeColor = _dpVer.Checked ? Theme.Text : Theme.Muted;
         }
 
         private string PickPath(bool isFile)
@@ -2648,14 +3366,46 @@ namespace OneCUpdate
             row.Cells[3].Value = job.Code == -9999 ? "" : job.Code.ToString();
             row.Cells[4].Value = job.Note;
 
-            Color color = Theme.Text;
-            if (job.State == JobState.Ok) color = Theme.Ok;
-            else if (job.State == JobState.Warning) color = Theme.Warn;
-            else if (job.State == JobState.Failed) color = Theme.Err;
-            else if (job.State == JobState.Running) color = Theme.Info;
-            else if (job.State == JobState.Canceled) color = Theme.Muted;
-            else if (job.State == JobState.Skipped) color = Theme.Info;
-            row.DefaultCellStyle.ForeColor = color;
+            // Цветовая схема статусов с фоном для лучшей визуализации
+            Color textColor = Theme.Text;
+            Color bgColor = (idx % 2 == 0) ? Theme.Surface : Theme.Surface2;
+            
+            if (job.State == JobState.Ok)
+            {
+                textColor = Theme.Ok;
+                // Тонкая подсветка фона для успешных операций
+                bgColor = (idx % 2 == 0) ? Color.FromArgb(28, 50, 35) : Color.FromArgb(33, 55, 40);
+            }
+            else if (job.State == JobState.Warning)
+            {
+                textColor = Theme.Warn;
+                bgColor = (idx % 2 == 0) ? Color.FromArgb(50, 45, 30) : Color.FromArgb(55, 50, 35);
+            }
+            else if (job.State == JobState.Failed)
+            {
+                textColor = Theme.Err;
+                bgColor = (idx % 2 == 0) ? Color.FromArgb(50, 30, 28) : Color.FromArgb(55, 35, 33);
+            }
+            else if (job.State == JobState.Running)
+            {
+                textColor = Theme.Info;
+                bgColor = (idx % 2 == 0) ? Color.FromArgb(30, 40, 55) : Color.FromArgb(35, 45, 60);
+            }
+            else if (job.State == JobState.Canceled)
+            {
+                textColor = Theme.Muted;
+            }
+            else if (job.State == JobState.Skipped)
+            {
+                textColor = Theme.Info;
+            }
+            
+            row.DefaultCellStyle.ForeColor = textColor;
+            row.DefaultCellStyle.BackColor = bgColor;
+            row.DefaultCellStyle.SelectionBackColor = Theme.AccentDark;
+            row.DefaultCellStyle.SelectionForeColor = Color.White;
+            
+            UpdateKpiCards();
         }
 
         private void UpdateTimes()
@@ -2665,6 +3415,7 @@ namespace OneCUpdate
             {
                 if (j.State == JobState.Running) SetRow(j, null, 0);
             }
+            UpdateKpiCards();
         }
 
         private static string StateText(JobState state)

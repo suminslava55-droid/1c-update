@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <AssemblyName>1CUpdate</AssemblyName>
+    <RootNamespace>OneCUpdate</RootNamespace>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <Version>2.0.0</Version>
+    <AssemblyTitle>1C Update</AssemblyTitle>
+    <Product>1C Update</Product>
+    <Description>Обновление платформы 1С на компьютерах через PsExec</Description>
+    <Company>@mr_sumin</Company>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SatelliteResourceLanguages>ru;en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\app.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.DirectoryServices" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="..\..\my\1C8InstallAndUninstall-1.09.ps1" LogicalName="script.ps1" />
+    <EmbeddedResource Include="..\..\my\PsExec.exe" LogicalName="psexec.exe" Condition="Exists('..\..\my\PsExec.exe')" />
+    <EmbeddedResource Include="..\..\my\PsExec64.exe" LogicalName="psexec64.exe" Condition="Exists('..\..\my\PsExec64.exe')" />
+    <EmbeddedResource Include="..\..\1CUpdate.exe" LogicalName="worker.exe" Condition="Exists('..\..\1CUpdate.exe')" />
+  </ItemGroup>
+
+</Project>
