@@ -8,13 +8,15 @@
 [![Telegram](https://img.shields.io/badge/Telegram-@mr__sumin-26A5E4?logo=telegram&logoColor=white&style=flat-square)](https://t.me/mr_sumin)
 ![version](https://img.shields.io/badge/version-2.0.0-2ea44f?style=flat-square)
 
-**Версия 2.0.0** · [CHANGELOG](CHANGELOG.md) · [MIT](LICENSE) · [Написать в Telegram](https://t.me/mr_sumin)
+**Версия 2.0.0 (WPF)** · WinForms-версия 1.1 — в `src/` · [CHANGELOG](CHANGELOG.md) · [MIT](LICENSE) · [Написать в Telegram](https://t.me/mr_sumin)
 
-![Окно 1C Update](screenshot.png)
+![Окно 1C Update 2.0 (WPF)](screenshot.png)
 
-> Есть также современная **WPF-версия** (`.NET 8`) с KPI-карточками, вкладками
-> «Результаты / Журнал» и сглаженными закруглениями: [`wpf/1CUpdate.Wpf`](wpf/1CUpdate.Wpf/README.md).
+> **WPF-версия 2.0** — основная: [`wpf/1CUpdate.Wpf`](wpf/1CUpdate.Wpf/README.md).
 > Собирается в **один самодостаточный exe** (~64 МБ): `powershell -File build-wpf.ps1 -Publish`.
+>
+> WinForms-версия 1.1 (исходник `src/Update1C.cs`, сборка `build.ps1`) тоже поддерживается —
+> её окно: [`screenshot-winforms.png`](screenshot-winforms.png).
 
 ---
 
@@ -153,6 +155,29 @@
 | **Отменено** | остановлено пользователем |
 
 ## Сборка из исходников
+
+### WPF-версия 2.0 (основная)
+
+Нужен **.NET 8 SDK** (https://dotnet.microsoft.com/download/dotnet/8.0).
+
+```powershell
+# сборка в bin\Release
+powershell -ExecutionPolicy Bypass -File .\build-wpf.ps1
+
+# один самодостаточный exe -> wpf\1CUpdate.Wpf\publish\1CUpdate.exe (~64 МБ)
+powershell -ExecutionPolicy Bypass -File .\build-wpf.ps1 -Publish
+
+# то же, но папкой (если в %TEMP% запрещена распаковка single-file)
+powershell -ExecutionPolicy Bypass -File .\build-wpf.ps1 -Publish -Folder
+```
+
+Что вшивается в exe: скрипт `1C8InstallAndUninstall.ps1`, PsExec x86/x64 и standalone-воркер
+(WinForms `1CUpdate.exe`), который `psexec -c` копирует на целевые ПК.
+Поэтому порядок сборки: сначала `build.ps1` (воркер), потом `build-wpf.ps1 -Publish`.
+
+### WinForms-версия 1.1
+
+![Окно 1C Update 1.1 (WinForms)](screenshot-winforms.png)
 
 Нужен только Windows и .NET Framework 4.x (компилятор `csc.exe` уже есть в системе).
 Сторонних библиотек нет — всё на WinForms из состава .NET.
