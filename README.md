@@ -6,9 +6,9 @@
 Скрипт установки **вшит в сам `.exe`** — держать `.ps1` на шаре не обязательно.
 
 [![Telegram](https://img.shields.io/badge/Telegram-@mr__sumin-26A5E4?logo=telegram&logoColor=white&style=flat-square)](https://t.me/mr_sumin)
-![version](https://img.shields.io/badge/version-1.1.0-2ea44f?style=flat-square)
+![version](https://img.shields.io/badge/version-2.0.0-2ea44f?style=flat-square)
 
-**Версия 1.1.0** · [CHANGELOG](CHANGELOG.md) · [MIT](LICENSE) · [Написать в Telegram](https://t.me/mr_sumin)
+**Версия 2.0.0** · [CHANGELOG](CHANGELOG.md) · [MIT](LICENSE) · [Написать в Telegram](https://t.me/mr_sumin)
 
 ![Окно 1C Update](screenshot.png)
 
