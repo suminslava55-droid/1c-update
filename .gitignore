@@ -1,0 +1,22 @@
+# собранные артефакты (только в корне)
+/1CUpdate.exe
+/1CUpdate.old*.exe
+/app.ico
+
+# PsTools: скачиваются с сайта Microsoft, в репозиторий не кладём
+my/PsExec.exe
+my/PsExec64.exe
+
+# тестовые сборки
+tests/*.exe
+
+# локальные настройки и мусор
+*.settings.ini
+temp/
+*.log
+*.progress.txt
+
+# WPF: сборка и публикация
+wpf/**/bin/
+wpf/**/obj/
+wpf/**/publish/
